@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.venv/
+notebooks/diag*.py
+notebooks/run_tests*.py
