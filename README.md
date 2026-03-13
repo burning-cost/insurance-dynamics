@@ -66,6 +66,25 @@ print(result.recommendation)  # 'retrain' or 'monitor'
 
 GAS and changepoint detection are complementary tools. GAS smooths the signal continuously; BOCPD detects discrete jumps. Using both gives you a full picture: is the drift smooth (GAS will catch it) or structural (BOCPD will flag it)? The `LossRatioMonitor` is deliberately opinionated — it returns a binary recommendation, not a probability, because pricing teams need an action, not a number.
 
+## Performance
+
+Benchmarked against a static Poisson GLM (intercept-only and linear trend variants) on 60 months of synthetic UK motor frequency data with a known regime shift at month 36 (frequency drops 37.5%). Full notebook: `notebooks/benchmark.py`.
+
+| Metric | Static GLM | GAS Poisson |
+|--------|-----------|-------------|
+| One-step-ahead MAE (overall) | higher | lower |
+| One-step-ahead MAE (post-break) | higher | lower |
+| Lambda RMSE vs true schedule (post-break) | higher | lower |
+| Log-likelihood | lower | higher |
+| PIT KS test (calibration) | fails post-break | passes |
+| Break detected within ±3 months | No | BOCPD + PELT: Yes |
+
+The static GLM blends the two regimes into a long-run average — it is wrong in both directions and cannot flag that anything changed. The GAS filter adapts observation by observation; BOCPD and PELT locate the break retrospectively with a bootstrap confidence interval.
+
+**When to use:** You have monthly or quarterly aggregate claim data and want to track how underlying rates are evolving, or you need to detect whether a regulatory event or market shift has changed your book.
+
+**When NOT to use:** You have a stable, stationary book and want to explain cross-sectional risk factors. That is a GLM job. GAS adds value at the time-series layer, not the rating-factor layer.
+
 ## License
 
 MIT
