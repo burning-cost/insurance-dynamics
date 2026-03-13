@@ -39,6 +39,8 @@ pip install insurance-dynamics
 
 ## Quick start
 
+The GAS example uses the built-in dataset loader — no data setup required:
+
 ```python
 from insurance_dynamics.gas import GASModel
 from insurance_dynamics.gas.datasets import load_motor_frequency
@@ -50,13 +52,33 @@ print(result.summary())
 result.filter_path.plot()
 ```
 
+The changepoint monitor requires time series arrays. Here is a minimal self-contained example with 60 months of synthetic UK motor data including a regime shift at month 36:
+
 ```python
+import numpy as np
 from insurance_dynamics.changepoint import LossRatioMonitor
+
+rng = np.random.default_rng(42)
+T = 60
+
+# Monthly exposure (earned car years)
+exposures = rng.uniform(800, 1200, T)
+
+# Claim frequency: base 0.08/year, step up 37.5% at month 36
+true_rate = np.where(np.arange(T) < 36, 0.08, 0.11)
+counts = rng.poisson(true_rate * exposures)
+
+# Mean severity (log-normal, slight upward drift)
+mean_sev = 1500 * np.exp(0.003 * np.arange(T)) * rng.lognormal(0, 0.15, T)
+
+# Period labels
+periods = [f"2021-{(i % 12) + 1:02d}" for i in range(T)]
 
 monitor = LossRatioMonitor(lines=["motor"], uk_events=True)
 result = monitor.monitor(
     claim_counts=counts,
     exposures=exposures,
+    mean_severities=mean_sev,
     periods=periods,
 )
 print(result.recommendation)  # 'retrain' or 'monitor'
