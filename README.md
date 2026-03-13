@@ -4,6 +4,8 @@ Dynamic insurance pricing models for UK pricing teams.
 
 Two problems, one package: tracking how your loss ratios are changing right now (GAS), and detecting when they shifted structurally in the past (changepoint).
 
+Merged from: `insurance-gas` (GAS score-driven models) and `insurance-changepoint` (BOCPD/PELT detection).
+
 ## The problems this solves
 
 **GAS models** (`insurance_dynamics.gas`): Your GLM gives you a static relativity. Reality gives you frequency that drifts quarter by quarter. GAS (Generalised Autoregressive Score) models fit a time-varying parameter model to claim counts, severities, or loss ratios — producing a filter path that shows you how the underlying rate has moved, with confidence bands from parametric bootstrap.
