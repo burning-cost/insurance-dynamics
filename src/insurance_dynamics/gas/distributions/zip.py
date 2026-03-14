@@ -122,7 +122,8 @@ class ZIPGAS(GASDistribution):
         ll_zero = np.log(np.maximum(p0, 1e-300))
         ll_pos = np.log(1.0 - pi) + y_arr * np.log(mu_e) - mu_e - gammaln(y_arr + 1.0)
 
-        return np.where(is_zero, ll_zero, ll_pos)
+        result = np.where(is_zero, ll_zero, ll_pos)
+        return np.squeeze(result)
 
     def link(self, param_name: str, value: float | NDArray) -> float | NDArray:
         """Log link for mean; logit link for zero probability."""

@@ -70,12 +70,13 @@ class GammaGAS(GASDistribution):
         a = self._get_shape(params)
         y_arr = np.asarray(y, dtype=float)
         # rate = a / mu, so log p = a*log(a/mu) + (a-1)*log(y) - a*y/mu - log Gamma(a)
-        return (
+        result = (
             a * np.log(a / mu)
             + (a - 1.0) * np.log(y_arr)
             - a * y_arr / mu
             - gammaln(a)
         )
+        return np.squeeze(result)
 
     def link(self, param_name: str, value: float | NDArray) -> float | NDArray:
         """Log link for mean; log link for shape."""

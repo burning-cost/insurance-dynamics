@@ -67,13 +67,14 @@ class BetaGAS(GASDistribution):
         a = mu * phi
         b = (1.0 - mu) * phi
         y_arr = np.asarray(y, dtype=float)
-        return (
+        result = (
             gammaln(phi)
             - gammaln(a)
             - gammaln(b)
             + (a - 1.0) * np.log(y_arr)
             + (b - 1.0) * np.log(1.0 - y_arr)
         )
+        return np.squeeze(result)
 
     def link(self, param_name: str, value: float | NDArray) -> float | NDArray:
         """Logit link for mean; log link for precision."""

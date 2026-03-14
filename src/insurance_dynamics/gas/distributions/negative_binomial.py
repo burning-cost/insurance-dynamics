@@ -70,13 +70,14 @@ class NegBinGAS(GASDistribution):
         e = exposure if exposure is not None else np.ones_like(np.atleast_1d(y), dtype=float)
         mu_e = mu * e
         y_arr = np.asarray(y, dtype=float)
-        return (
+        result = (
             gammaln(y_arr + r)
             - gammaln(r)
             - gammaln(y_arr + 1.0)
             + r * np.log(r / (r + mu_e))
             + y_arr * np.log(mu_e / (r + mu_e))
         )
+        return np.squeeze(result)
 
     def link(self, param_name: str, value: float | NDArray) -> float | NDArray:
         """Log link for both mean and dispersion."""

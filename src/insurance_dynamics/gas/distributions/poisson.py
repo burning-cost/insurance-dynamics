@@ -68,7 +68,8 @@ class PoissonGAS(GASDistribution):
         e = exposure if exposure is not None else np.ones_like(np.atleast_1d(y), dtype=float)
         rate = mu * e
         y_arr = np.asarray(y, dtype=float)
-        return y_arr * np.log(rate) - rate - gammaln(y_arr + 1.0)
+        result = y_arr * np.log(rate) - rate - gammaln(y_arr + 1.0)
+        return np.squeeze(result)
 
     def link(self, param_name: str, value: float | NDArray) -> float | NDArray:
         """Log link: f = log(mu)."""

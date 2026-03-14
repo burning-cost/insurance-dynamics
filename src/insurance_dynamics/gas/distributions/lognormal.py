@@ -57,12 +57,13 @@ class LogNormalGAS(GASDistribution):
         mu = params["logmean"]
         sigma = np.exp(params["logsigma"])
         y_arr = np.asarray(y, dtype=float)
-        return (
+        result = (
             -np.log(y_arr)
             - np.log(sigma)
             - 0.5 * np.log(2 * np.pi)
             - 0.5 * ((np.log(y_arr) - mu) / sigma) ** 2
         )
+        return np.squeeze(result)
 
     def link(self, param_name: str, value: float | NDArray) -> float | NDArray:
         """Identity link for log-mean; log link for log-sigma."""
