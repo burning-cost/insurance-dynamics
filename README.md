@@ -1,5 +1,11 @@
 # insurance-dynamics
 
+[![PyPI](https://img.shields.io/pypi/v/insurance-dynamics)](https://pypi.org/project/insurance-dynamics/)
+[![Python](https://img.shields.io/pypi/pyversions/insurance-dynamics)](https://pypi.org/project/insurance-dynamics/)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)]()
+[![License](https://img.shields.io/badge/license-BSD--3-blue)]()
+
+
 Dynamic insurance pricing models for UK pricing teams.
 
 Two problems, one package: tracking how your loss ratios are changing right now (GAS), and detecting when they shifted structurally in the past (changepoint).
