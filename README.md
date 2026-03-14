@@ -88,6 +88,11 @@ print(result.recommendation)  # 'retrain' or 'monitor'
 
 GAS and changepoint detection are complementary tools. GAS smooths the signal continuously; BOCPD detects discrete jumps. Using both gives you a full picture: is the drift smooth (GAS will catch it) or structural (BOCPD will flag it)? The `LossRatioMonitor` is deliberately opinionated — it returns a binary recommendation, not a probability, because pricing teams need an action, not a number.
 
+
+## Databricks Notebook
+
+A ready-to-run Databricks notebook benchmarking this library against standard approaches is available in [burning-cost-examples](https://github.com/burning-cost/burning-cost-examples/blob/main/notebooks/insurance_dynamics_demo.py).
+
 ## Performance
 
 Benchmarked against a static Poisson GLM (intercept-only and linear trend variants) on 60 months of synthetic UK motor frequency data with a known regime shift at month 36 (frequency drops 37.5%). Full notebook: `notebooks/benchmark.py`.
