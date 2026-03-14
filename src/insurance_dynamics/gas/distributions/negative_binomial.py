@@ -24,7 +24,10 @@ class NegBinGAS(GASDistribution):
     default_time_varying = ["mean"]
 
     def _get_r(self, params: dict) -> float:
-        return float(params.get("dispersion", 1.0))
+        # Use .item() to safely convert numpy scalars/0-d arrays to Python float
+        # (NumPy 2.0 removed implicit conversion of non-0-d arrays via float())
+        val = params.get("dispersion", 1.0)
+        return val.item() if hasattr(val, "item") else float(val)
 
     def score(
         self,
@@ -41,7 +44,9 @@ class NegBinGAS(GASDistribution):
         e = exposure if exposure is not None else np.ones_like(np.atleast_1d(y), dtype=float)
         mu_e = mu * e
         y_arr = np.asarray(y, dtype=float)
-        return {"mean": y_arr - (y_arr + r) * mu_e / (mu_e + r)}
+        result = y_arr - (y_arr + r) * mu_e / (mu_e + r)
+        # Squeeze to avoid shape-(1,) arrays that break float() in NumPy 2.0
+        return {"mean": np.squeeze(result)}
 
     def fisher(
         self,
