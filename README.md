@@ -107,6 +107,15 @@ The static GLM blends the two regimes into a long-run average — it is wrong in
 
 **When NOT to use:** You have a stable, stationary book and want to explain cross-sectional risk factors. That is a GLM job. GAS adds value at the time-series layer, not the rating-factor layer.
 
+
+## Related Libraries
+
+| Library | What it does |
+|---------|-------------|
+| [insurance-trend](https://github.com/burning-cost/insurance-trend) | Forward trend projection — trend fits feed into the dynamic projection models |
+| [insurance-severity](https://github.com/burning-cost/insurance-severity) | Heavy-tail severity with composite Pareto models — dynamics models require severity projections for large loss exposure |
+| [insurance-monitoring](https://github.com/burning-cost/insurance-monitoring) | Model monitoring — tracks whether dynamic projections remain calibrated over time |
+
 ## License
 
 MIT
