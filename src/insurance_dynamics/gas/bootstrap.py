@@ -33,10 +33,29 @@ class BootstrapCI:
     confidence: float
     n_boot: int
 
+    # ------------------------------------------------------------------
+    # Convenience aliases so notebooks can use ci.lower / ci.upper / ci.central
+    # alongside the canonical ci.filter_lower / ci.filter_upper / ci.filter_median
+    # ------------------------------------------------------------------
+
+    @property
+    def lower(self) -> pd.DataFrame:
+        """Alias for filter_lower."""
+        return self.filter_lower
+
+    @property
+    def upper(self) -> pd.DataFrame:
+        """Alias for filter_upper."""
+        return self.filter_upper
+
+    @property
+    def central(self) -> pd.DataFrame:
+        """Alias for filter_median."""
+        return self.filter_median
+
     def plot(self, param: str | None = None, ax=None):
         """Plot the bootstrap confidence band."""
         import matplotlib.pyplot as plt
-        from .plotting import plot_filter
 
         if ax is None:
             _, ax = plt.subplots(figsize=(10, 5))
