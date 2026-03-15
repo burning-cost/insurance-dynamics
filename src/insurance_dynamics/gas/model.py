@@ -53,6 +53,9 @@ class GASResult:
     distribution: GASDistribution
     model: "GASModel"
     _raw_result: optimize.OptimizeResult | None = field(default=None, repr=False)
+    # P1-2: store training data and exposure so diagnostics and bootstrap work correctly.
+    _y: NDArray[np.float64] | None = field(default=None, repr=False)
+    _exposure: NDArray[np.float64] | None = field(default=None, repr=False)
 
     @property
     def trend_index(self) -> pd.DataFrame:
@@ -438,6 +441,9 @@ class GASModel:
             distribution=self.distribution,
             model=self,
             _raw_result=result,
+            # P1-2: store training data so diagnostics and bootstrap can use them.
+            _y=y,
+            _exposure=exposure,
         )
         return self._fitted
 

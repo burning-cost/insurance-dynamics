@@ -43,20 +43,47 @@ class TestPoissonGAS:
         self.dist = PoissonGAS()
         self.params = {"mean": 2.0}
 
-    def test_score_zero_count(self):
-        """y=0: score should be 0/mu - 1 = -1."""
-        s = self.dist.score(np.array([0.0]), self.params)
-        assert s["mean"] == pytest.approx(-1.0)
+    # --- P0-1 regression tests ---
 
-    def test_score_equals_mu_count(self):
-        """y=mu: score should be 0."""
+    def test_p0_1_score_is_raw_not_unit_scaled(self):
+        """P0-1: score() must return y - rate (raw), not y/rate - 1 (unit-scaled)."""
+        # y=0, mu=2: raw score = 0 - 2 = -2
+        s = self.dist.score(np.array([0.0]), self.params)
+        assert s["mean"] == pytest.approx(-2.0)
+
+    def test_p0_1_score_zero_count(self):
+        """y=0, mu=2: raw score = 0 - 2 = -2."""
+        s = self.dist.score(np.array([0.0]), self.params)
+        assert s["mean"] == pytest.approx(-2.0)
+
+    def test_p0_1_score_equals_mu_count(self):
+        """y=mu: raw score = 0."""
         s = self.dist.score(np.array([2.0]), {"mean": 2.0})
         assert s["mean"] == pytest.approx(0.0)
 
-    def test_score_large_count(self):
-        """y=6, mu=2: score = 6/2 - 1 = 2."""
+    def test_p0_1_score_large_count(self):
+        """y=6, mu=2: raw score = 6 - 2 = 4."""
         s = self.dist.score(np.array([6.0]), {"mean": 2.0})
-        assert s["mean"] == pytest.approx(2.0)
+        assert s["mean"] == pytest.approx(4.0)
+
+    def test_p0_1_fisher_inv_scaled_score_matches_unit_scaled_formula(self):
+        """After fisher_inv scaling, result = (y-rate)/rate = y/rate - 1.
+
+        This is the quantity the GAS filter uses for its update step.
+        Prior to P0-1 fix the update was 1/rate * (y/rate - 1), which
+        is 1/(mu*e) of the correct value.
+        """
+        # y=4, mu=2, no exposure: raw score = 2, fisher = 2, scaled = 1.0
+        s = self.dist.scaled_score(np.array([4.0]), {"mean": 2.0}, scaling="fisher_inv")
+        assert s["mean"] == pytest.approx(1.0)
+
+    def test_p0_1_fisher_inv_scaled_score_with_exposure(self):
+        """With exposure E=3: rate=6, y=9 → raw=3, fisher=6, scaled=0.5."""
+        s = self.dist.scaled_score(
+            np.array([9.0]), {"mean": 2.0}, scaling="fisher_inv",
+            exposure=np.array([3.0])
+        )
+        assert s["mean"] == pytest.approx(0.5)
 
     def test_fisher_positive(self):
         fi = self.dist.fisher(self.params)
@@ -104,27 +131,29 @@ class TestPoissonGAS:
         assert init["mean"] == pytest.approx(2.5)
 
     def test_scaled_score_unit(self):
+        """Unit scaling returns raw score."""
         s = self.dist.scaled_score(np.array([4.0]), {"mean": 2.0}, scaling="unit")
-        assert s["mean"] == pytest.approx(1.0)  # 4/2 - 1 = 1
+        assert s["mean"] == pytest.approx(2.0)  # raw = 4 - 2 = 2
 
     def test_scaled_score_fisher_inv(self):
-        # fisher_inv: scale by 1/mu = 0.5
+        """fisher_inv: raw score / fisher = (4-2)/2 = 1.0"""
         s = self.dist.scaled_score(np.array([4.0]), {"mean": 2.0}, scaling="fisher_inv")
-        assert s["mean"] == pytest.approx(1.0 / 2.0)
+        assert s["mean"] == pytest.approx(1.0)
 
     def test_scaled_score_fisher_inv_sqrt(self):
+        """fisher_inv_sqrt: raw score / sqrt(fisher) = 2/sqrt(2) = sqrt(2)"""
         s = self.dist.scaled_score(np.array([4.0]), {"mean": 2.0}, scaling="fisher_inv_sqrt")
-        expected = 1.0 / np.sqrt(2.0)
+        expected = 2.0 / np.sqrt(2.0)
         assert s["mean"] == pytest.approx(expected)
 
     def test_score_array_input(self):
         y = np.array([1.0, 2.0, 3.0])
         s = self.dist.score(y, {"mean": 2.0})
-        expected = y / 2.0 - 1.0
+        expected = y - 2.0  # raw score = y - mu
         np.testing.assert_allclose(s["mean"], expected)
 
     def test_exposure_weighted_score(self):
-        """With exposure E=2, effective rate = mu*E = 4. y=4: score = 4/4 - 1 = 0."""
+        """With exposure E=2, rate = mu*E = 4. y=4: raw score = 0."""
         s = self.dist.score(np.array([4.0]), {"mean": 2.0}, exposure=np.array([2.0]))
         assert s["mean"] == pytest.approx(0.0)
 
@@ -313,32 +342,56 @@ class TestBetaGAS:
         self.dist = BetaGAS()
         self.params = {"mean": 0.65, "precision": 15.0}
 
-    def test_score_at_mean(self):
-        s = self.dist.score(np.array([0.65]), self.params)
-        assert s["mean"] == pytest.approx(0.0, abs=1e-10)
+    # --- P0-2 regression tests ---
 
-    def test_score_above_mean(self):
+    def test_p0_2_expected_score_is_zero(self):
+        """P0-2: The Ferrari & Cribari-Neto score has zero expectation at true params.
+
+        E_{Y ~ Beta(mu*phi, (1-mu)*phi)}[score(Y)] = 0 by the regularity condition.
+        The score at a specific y=mu is NOT zero with the correct formula (unlike the
+        buggy phi*(y-mu) formula which incorrectly gives zero at y=mu exactly).
+        """
+        rng = np.random.default_rng(123)
+        mu, phi = 0.65, 15.0
+        # Draw a large sample from the true Beta distribution
+        y_sample = rng.beta(mu * phi, (1 - mu) * phi, size=10_000)
+        # Vectorised call — pass all samples at once
+        scores = self.dist.score(y_sample, {"mean": mu, "precision": phi})["mean"]
+        # Mean of scores must be near zero (zero in expectation = score regularity)
+        assert np.mean(scores) == pytest.approx(0.0, abs=0.2)
+
+    def test_p0_2_score_is_not_phi_times_residual(self):
+        """P0-2: score must NOT be phi*(y-mu).  Verify for y away from mean."""
+        mu, phi, y = 0.65, 15.0, 0.80
+        wrong = phi * (y - mu)  # the buggy formula
+        s = self.dist.score(np.array([y]), self.params)
+        # The correct score (Ferrari & Cribari-Neto 2004) differs from wrong formula
+        assert s["mean"] != pytest.approx(wrong, rel=1e-3)
+
+    def test_p0_2_fisher_is_trigamma_based(self):
+        """P0-2: Fisher info must use trigamma, not phi*mu*(1-mu)."""
+        from scipy.special import polygamma
+        mu, phi = 0.65, 15.0
+        old_formula = phi * mu * (1.0 - mu)
+        fi = self.dist.fisher(self.params)
+        # Correct formula differs from old; just verify it's not the old value
+        correct = (phi * mu * (1.0 - mu))**2 * (
+            polygamma(1, mu * phi) + polygamma(1, (1.0 - mu) * phi)
+        )
+        assert fi["mean"] == pytest.approx(correct, rel=1e-6)
+        assert fi["mean"] != pytest.approx(old_formula, rel=1e-3)
+
+    def test_p0_2_score_above_mean(self):
         s = self.dist.score(np.array([0.8]), self.params)
         assert s["mean"] > 0
 
-    def test_score_below_mean(self):
+    def test_p0_2_score_below_mean(self):
         s = self.dist.score(np.array([0.5]), self.params)
         assert s["mean"] < 0
-
-    def test_score_magnitude(self):
-        """phi * (y - mu) with phi=15, y=0.8, mu=0.65."""
-        s = self.dist.score(np.array([0.8]), self.params)
-        assert s["mean"] == pytest.approx(15.0 * (0.8 - 0.65))
 
     def test_fisher_positive(self):
         fi = self.dist.fisher(self.params)
         assert fi["mean"] > 0
-
-    def test_fisher_formula(self):
-        mu, phi = 0.65, 15.0
-        fi = self.dist.fisher(self.params)
-        expected = phi * mu * (1.0 - mu)
-        assert fi["mean"] == pytest.approx(expected)
 
     def test_log_likelihood_finite(self):
         ll = self.dist.log_likelihood(np.array([0.65]), self.params)

@@ -88,6 +88,7 @@ def compute_diagnostics(result) -> DiagnosticsResult:
     filter_path = result.filter_path
     time_varying = model.time_varying
 
+    # P1-2 fix: _y is now stored on GASResult during fit().
     y = getattr(result, "_y", None)
 
     if y is not None:
@@ -111,11 +112,29 @@ def compute_diagnostics(result) -> DiagnosticsResult:
     # KS test for uniformity
     ks_stat, ks_p = stats.kstest(pit_vals, "uniform")
 
-    # Dawid-Sebastiani score
-    sr = result.score_residuals.iloc[:, 0].values
-    ds_mean = float(np.mean(sr**2 + 2.0 * np.log(np.abs(sr) + 1e-10)))
+    # P1-3 fix: Dawid-Sebastiani proper scoring rule.
+    # Use (y-mu)^2/sigma^2 + 2*log(sigma), not a function of score residuals.
+    if y is not None:
+        T = len(y)
+        mu_arr = np.zeros(T)
+        sigma_arr = np.zeros(T)
+        for t in range(T):
+            params_t = {name: float(filter_path[name].iloc[t]) for name in time_varying}
+            for sname in model._build_static_param_names():
+                params_t[sname] = result.params[sname]
+            mu_arr[t], sigma_arr[t] = _predictive_mean_sigma(dist, params_t)
+        sigma_arr = np.where(sigma_arr > 0, sigma_arr, 1e-8)
+        ds_mean = dawid_sebastiani_score(
+            np.asarray(y, dtype=float), mu_arr, sigma_arr
+        )
+    else:
+        # Fallback when _y is unavailable: use score residuals with unit sigma.
+        # This is approximate but avoids crashing.
+        sr = result.score_residuals.iloc[:, 0].values
+        ds_mean = float(np.mean(sr**2))
 
     # ACF of score residuals
+    sr = result.score_residuals.iloc[:, 0].values
     acf_vals = _compute_acf(sr, nlags=20)
 
     # Ljung-Box test
@@ -134,6 +153,63 @@ def compute_diagnostics(result) -> DiagnosticsResult:
         acf_values=acf_vals,
         ljung_box_pvalue=lb_p,
     )
+
+
+def _predictive_mean_sigma(dist, params: dict) -> tuple[float, float]:
+    """Return (predictive mean, predictive std dev) for a distribution at params.
+
+    Used to compute the Dawid-Sebastiani score without requiring the raw
+    score residuals.
+    """
+    from .distributions import (
+        PoissonGAS, NegBinGAS, GammaGAS, LogNormalGAS, BetaGAS, ZIPGAS
+    )
+
+    if isinstance(dist, PoissonGAS):
+        mu = float(params["mean"])
+        return mu, float(np.sqrt(mu))
+
+    elif isinstance(dist, NegBinGAS):
+        mu = float(params["mean"])
+        r = float(params.get("dispersion", 1.0))
+        var = mu + mu**2 / r
+        return mu, float(np.sqrt(var))
+
+    elif isinstance(dist, GammaGAS):
+        mu = float(params["mean"])
+        a = float(params.get("shape", 1.0))
+        # Var(Gamma) = mean^2 / shape
+        return mu, float(mu / np.sqrt(a))
+
+    elif isinstance(dist, LogNormalGAS):
+        mu_log = float(params["logmean"])
+        # logsigma is stored as log(sigma_log), so sigma_log = exp(logsigma)
+        sigma_log = float(np.exp(params.get("logsigma", np.log(0.5))))
+        # Predictive mean on original scale
+        mu_orig = float(np.exp(mu_log + 0.5 * sigma_log**2))
+        # Predictive std on original scale
+        sigma_orig = float(
+            np.sqrt((np.exp(sigma_log**2) - 1.0) * np.exp(2.0 * mu_log + sigma_log**2))
+        )
+        return mu_orig, sigma_orig
+
+    elif isinstance(dist, BetaGAS):
+        mu = float(params["mean"])
+        phi = float(params.get("precision", 10.0))
+        var = mu * (1.0 - mu) / (phi + 1.0)
+        return mu, float(np.sqrt(var))
+
+    elif isinstance(dist, ZIPGAS):
+        mu = float(params["mean"])
+        pi = float(params.get("zeroprob", 0.0))
+        mean_y = (1.0 - pi) * mu
+        var_y = (1.0 - pi) * (mu + mu**2) - mean_y**2
+        return mean_y, float(np.sqrt(max(var_y, 1e-8)))
+
+    else:
+        # Generic fallback: mean from first time-varying param, unit sigma
+        first_val = next(iter(params.values()), 1.0)
+        return float(first_val), 1.0
 
 
 def _randomised_pit_discrete(
@@ -180,7 +256,8 @@ def _pit_continuous(dist, y: float, params: dict) -> float:
         return float(gamma.cdf(y, a=a, scale=mu / a))
     elif isinstance(dist, LogNormalGAS):
         mu_log = params["logmean"]
-        sigma = params.get("logsigma", 0.5)
+        # P0-3 fix: logsigma is log(sigma), so exponentiate to get sigma.
+        sigma = float(np.exp(params.get("logsigma", np.log(0.5))))
         return float(norm.cdf(np.log(y), loc=mu_log, scale=sigma))
     elif isinstance(dist, BetaGAS):
         mu = params["mean"]

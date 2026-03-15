@@ -114,20 +114,26 @@ def bootstrap_ci(
     T = result.n_obs
     time_varying = model.time_varying
 
+    # P1-1 fix: retrieve exposure stored during fit so bootstrap refits use it.
+    original_exposure: NDArray | None = getattr(result, "_exposure", None)
+
     # Collect bootstrap filter paths
     boot_paths: dict[str, list[NDArray]] = {name: [] for name in time_varying}
 
     for b in range(n_boot):
-        # Generate synthetic series from fitted filter path
+        # Generate synthetic series from fitted filter path, accounting for
+        # per-period exposure so count distributions are correctly scaled.
         y_boot = np.zeros(T)
         for t in range(T):
             params_t = {name: float(result.filter_path[name].iloc[t]) for name in time_varying}
             # Add static params
             for sname in model._build_static_param_names():
                 params_t[sname] = result.params[sname]
-            y_boot[t] = _draw_sample(dist, params_t, rng)
+            exp_t = float(original_exposure[t]) if original_exposure is not None else None
+            y_boot[t] = _draw_sample(dist, params_t, rng, exposure=exp_t)
 
-        # Refit model
+        # Refit model — pass original exposure so the filter sees the same
+        # scaling as the original fit.
         try:
             boot_model = type(model)(
                 distribution=model.distribution_name if hasattr(model, "distribution_name") else "poisson",
@@ -136,7 +142,7 @@ def bootstrap_ci(
                 scaling=model.scaling,
                 time_varying=model.time_varying,
             )
-            boot_result = boot_model.fit(y_boot, max_iter=300)
+            boot_result = boot_model.fit(y_boot, exposure=original_exposure, max_iter=300)
             for name in time_varying:
                 boot_paths[name].append(boot_result.filter_path[name].values)
         except Exception:

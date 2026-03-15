@@ -182,12 +182,29 @@ def _draw_sample(
     dist,
     params: dict[str, float],
     rng: np.random.Generator,
+    exposure: float | None = None,
 ) -> float:
-    """Draw a single sample from the distribution at current params."""
+    """Draw a single sample from the distribution at current params.
+
+    Parameters
+    ----------
+    dist:
+        A GASDistribution instance.
+    params:
+        Parameter dict (natural scale).
+    rng:
+        Random number generator.
+    exposure:
+        Optional per-observation exposure.  For count distributions
+        (Poisson, NegBin, ZIP) the sample is drawn from the rate
+        ``mu * exposure`` so that bootstrap samples have the correct scale.
+    """
     from .distributions import PoissonGAS, GammaGAS, NegBinGAS, LogNormalGAS, BetaGAS, ZIPGAS
 
     if isinstance(dist, PoissonGAS):
-        lam = min(float(params["mean"]), 1e6)  # clamp to avoid overflow
+        mu = float(params["mean"])
+        e = float(exposure) if exposure is not None else 1.0
+        lam = min(mu * e, 1e6)  # clamp to avoid overflow
         return float(rng.poisson(lam))
     elif isinstance(dist, GammaGAS):
         shape = params.get("shape", 1.0)
@@ -195,12 +212,15 @@ def _draw_sample(
         return float(rng.gamma(shape=shape, scale=scale))
     elif isinstance(dist, NegBinGAS):
         mu = float(params["mean"])
+        e = float(exposure) if exposure is not None else 1.0
+        mu_eff = mu * e
         r = float(params.get("dispersion", 1.0))
-        p = r / (r + mu)
+        p = r / (r + mu_eff)
         p = float(np.clip(p, 1e-8, 1.0 - 1e-8))
         return float(rng.negative_binomial(max(int(round(r)), 1), p))
     elif isinstance(dist, LogNormalGAS):
-        sigma = float(params.get("logsigma", 0.5))
+        # logsigma is stored as log(sigma), so exponentiate to get sigma.
+        sigma = float(np.exp(params.get("logsigma", np.log(0.5))))
         logmean = float(params.get("logmean", 0.0))
         return float(rng.lognormal(mean=np.clip(logmean, -20, 20), sigma=np.clip(sigma, 1e-8, 10)))
     elif isinstance(dist, BetaGAS):
@@ -211,7 +231,9 @@ def _draw_sample(
         pi = float(params.get("zeroprob", 0.1))
         if rng.random() < pi:
             return 0.0
-        lam = min(float(params["mean"]), 1e6)
+        mu = float(params["mean"])
+        e = float(exposure) if exposure is not None else 1.0
+        lam = min(mu * e, 1e6)
         return float(rng.poisson(lam))
     else:
         raise NotImplementedError(f"Sampling not implemented for {type(dist).__name__}")

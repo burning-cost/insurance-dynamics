@@ -55,3 +55,52 @@ class TestBootstrapCI:
     def test_standalone_function(self):
         ci = bootstrap_ci(self.result, n_boot=30, rng=np.random.default_rng(8))
         assert isinstance(ci, BootstrapCI)
+
+
+# ---------------------------------------------------------------------------
+# P1-1 regression: bootstrap passes exposure to boot_model.fit()
+# ---------------------------------------------------------------------------
+
+class TestP11BootstrapExposure:
+    """P1-1: bootstrap_ci must pass original exposure to each refit, otherwise
+    Poisson counts are not on the same scale as the original fit."""
+
+    def test_p1_1_exposure_stored_on_result(self):
+        data = load_motor_frequency(T=24, seed=20, trend_break=False)
+        m = GASModel("poisson")
+        result = m.fit(data.y, exposure=data.exposure)
+        assert result._exposure is not None
+        np.testing.assert_array_almost_equal(
+            result._exposure, np.asarray(data.exposure, dtype=float)
+        )
+
+    def test_p1_1_bootstrap_with_exposure_produces_finite_ci(self):
+        """With exposure properly passed, bootstrap CIs must be finite and positive."""
+        data = load_motor_frequency(T=30, seed=21, trend_break=False)
+        m = GASModel("poisson")
+        result = m.fit(data.y, exposure=data.exposure)
+        ci = result.bootstrap_ci(n_boot=30, rng=np.random.default_rng(21))
+        assert np.all(np.isfinite(ci.filter_lower["mean"].values))
+        assert np.all(np.isfinite(ci.filter_upper["mean"].values))
+        assert np.all(ci.filter_lower["mean"].values > 0)
+
+    def test_p1_1_bootstrap_no_exposure_still_works(self):
+        """Without exposure, bootstrap should still work (no regression)."""
+        rng = np.random.default_rng(22)
+        y = rng.poisson(3.0, 30).astype(float)
+        m = GASModel("poisson")
+        result = m.fit(y)
+        assert result._exposure is None
+        ci = result.bootstrap_ci(n_boot=20, rng=np.random.default_rng(23))
+        assert isinstance(ci, BootstrapCI)
+
+    def test_p1_1_bootstrap_ci_width_reasonable_with_exposure(self):
+        """CI width should be non-trivially larger than zero for each period."""
+        data = load_motor_frequency(T=36, seed=24, trend_break=False)
+        m = GASModel("poisson")
+        result = m.fit(data.y, exposure=data.exposure)
+        ci = result.bootstrap_ci(n_boot=40, rng=np.random.default_rng(24))
+        widths = ci.filter_upper["mean"].values - ci.filter_lower["mean"].values
+        # All widths must be non-negative; at least some must be > 0
+        assert np.all(widths >= -1e-8)
+        assert np.mean(widths) > 1e-4

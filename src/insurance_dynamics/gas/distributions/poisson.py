@@ -16,9 +16,10 @@ class PoissonGAS(GASDistribution):
     positive. The GAS recursion adapts the rate up when observed counts
     exceed the fitted rate and down when they fall short.
 
-    With exposure E_t, the conditional mean is mu_t * E_t and the score
-    becomes (y_t / (mu_t * E_t)) - 1, scaled by the Fisher information
-    1 / mu_t (for the log-linked parameter).
+    With exposure E_t, the conditional mean is mu_t * E_t and the raw score
+    (gradient of the log-likelihood w.r.t. f = log(mu)) is y - mu * E.
+    The Fisher information w.r.t. f is mu * E, so the Fisher-inverse-scaled
+    score is (y - mu*E) / (mu*E) = y/(mu*E) - 1.
 
     This is the primary distribution for monthly or quarterly claim
     frequency monitoring in UK personal lines.
@@ -33,16 +34,19 @@ class PoissonGAS(GASDistribution):
         params: dict[str, NDArray[np.float64]],
         exposure: NDArray[np.float64] | None = None,
     ) -> dict[str, NDArray[np.float64]]:
-        """Score of log P(y | mu) w.r.t. f = log(mu).
+        """Raw score of log P(y | mu) w.r.t. f = log(mu).
 
         For the log link: d/df log P(y | exp(f)) = y - mu * E
-        where E is the exposure. Fisher info w.r.t. f is mu * E.
-        The unit-scaled score is therefore (y / (mu * E)) - 1.
+        where E is the exposure.  Fisher info w.r.t. f is mu * E, so
+        the Fisher-inverse-scaled score becomes (y - rate) / rate.
+
+        Returns the *raw* (unscaled) score.  Scaling is applied by
+        GASDistribution.scaled_score().
         """
         mu = params["mean"]
         e = exposure if exposure is not None else np.ones_like(np.atleast_1d(y), dtype=float)
         rate = mu * e
-        return {"mean": np.asarray(y, dtype=float) / rate - 1.0}
+        return {"mean": np.asarray(y, dtype=float) - rate}
 
     def fisher(
         self,

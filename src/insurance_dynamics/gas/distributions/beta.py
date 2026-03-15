@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.special import gammaln, digamma
+from scipy.special import gammaln, digamma, polygamma
 
 from .base import GASDistribution
 
@@ -18,6 +18,12 @@ class BetaGAS(GASDistribution):
     Loss ratios (claims / premium) live on (0,1) and their evolution over
     time can be tracked with this distribution. The logit link ensures the
     filtered mean stays in (0,1) throughout.
+
+    Score w.r.t. logit(mu) follows Ferrari & Cribari-Neto (2004):
+        raw = phi * mu * (1-mu) * [logit(y) + psi((1-mu)*phi) - psi(mu*phi)]
+    Fisher information w.r.t. logit(mu):
+        I = (phi * mu * (1-mu))^2 * [polygamma(1, mu*phi) + polygamma(1, (1-mu)*phi)]
+    where psi is the digamma function and polygamma(1, .) is the trigamma function.
     """
 
     param_names = ["mean", "precision"]
@@ -32,15 +38,22 @@ class BetaGAS(GASDistribution):
         params: dict[str, NDArray[np.float64]],
         exposure: NDArray[np.float64] | None = None,
     ) -> dict[str, NDArray[np.float64]]:
-        """Score w.r.t. logit(mu) (logit link).
+        """Raw score w.r.t. logit(mu) (logit link).
 
-        For Beta with mean parametrisation, the score w.r.t. logit(mu) is:
-        phi * (y - mu) where phi is the precision.
+        Ferrari & Cribari-Neto (2004) eq. for d/d(logit mu) log Beta(y | mu, phi):
+            score = phi * mu * (1-mu) * (log(y/(1-y)) + digamma((1-mu)*phi) - digamma(mu*phi))
+
+        Returns the *raw* (unscaled) score.
         """
         mu = params["mean"]
         phi = self._get_phi(params)
         y_arr = np.asarray(y, dtype=float)
-        return {"mean": phi * (y_arr - mu)}
+        raw = phi * mu * (1.0 - mu) * (
+            np.log(y_arr / (1.0 - y_arr))
+            + digamma((1.0 - mu) * phi)
+            - digamma(mu * phi)
+        )
+        return {"mean": raw}
 
     def fisher(
         self,
@@ -49,11 +62,15 @@ class BetaGAS(GASDistribution):
     ) -> dict[str, NDArray[np.float64]]:
         """Fisher information w.r.t. logit(mu).
 
-        I(logit(mu)) = phi * mu * (1 - mu).
+        I(logit(mu)) = (phi * mu * (1-mu))^2 * (trigamma(mu*phi) + trigamma((1-mu)*phi))
+        where trigamma = polygamma(1, .).
         """
         mu = params["mean"]
         phi = self._get_phi(params)
-        return {"mean": phi * mu * (1.0 - mu)}
+        fi = (phi * mu * (1.0 - mu)) ** 2 * (
+            polygamma(1, mu * phi) + polygamma(1, (1.0 - mu) * phi)
+        )
+        return {"mean": fi}
 
     def log_likelihood(
         self,
