@@ -7,7 +7,7 @@ to a roughly Gaussian one, where the Normal-Gamma conjugate is exact.
 
 Usage
 -----
->>> from insurance_changepoint import SeverityChangeDetector
+>>> from insurance_dynamics.changepoint import SeverityChangeDetector
 >>> detector = SeverityChangeDetector()
 >>> result = detector.fit(mean_severities, claim_counts, periods)
 """

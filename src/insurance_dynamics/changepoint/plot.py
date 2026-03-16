@@ -6,8 +6,8 @@ no plt.show() calls. The caller decides what to do with the figure.
 
 Usage
 -----
->>> from insurance_changepoint import FrequencyChangeDetector
->>> from insurance_changepoint.plot import plot_regime_probs, plot_run_length_heatmap
+>>> from insurance_dynamics.changepoint import FrequencyChangeDetector
+>>> from insurance_dynamics.changepoint.plot import plot_regime_probs, plot_run_length_heatmap
 >>> result = detector.fit(counts, exposures, periods)
 >>> fig = plot_regime_probs(result)
 >>> fig.savefig("monitoring_q4_2024.png", dpi=150)

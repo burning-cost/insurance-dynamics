@@ -11,7 +11,7 @@ regime change above the threshold.
 
 Usage
 -----
->>> from insurance_changepoint import LossRatioMonitor
+>>> from insurance_dynamics.changepoint import LossRatioMonitor
 >>> monitor = LossRatioMonitor(lines=['motor'])
 >>> result = monitor.monitor(
 ...     loss_ratios=lr_series,
@@ -156,21 +156,26 @@ class LossRatioMonitor:
             )
 
         # Severity component
-        sevs = None
         if mean_severities is not None:
+            # Direct severity input: fit detector immediately.
             sevs = np.asarray(mean_severities, dtype=float)
+            sev_result = self._sev_detector.fit(
+                mean_severities=sevs,
+                periods=periods,
+                period_to_date_fn=period_to_date_fn,
+            )
         elif (
             loss_ratios is not None
             and premiums is not None
             and claim_counts is not None
         ):
+            # Derive mean severity from loss ratio and premium.
             lr = np.asarray(loss_ratios, dtype=float)
             prem = np.asarray(premiums, dtype=float)
             cnt = np.asarray(claim_counts, dtype=float)
-            # Derive mean severity: avoid division by zero
+            # Avoid division by zero — periods with zero claims are dropped.
             with np.errstate(invalid="ignore", divide="ignore"):
                 sevs = np.where(cnt > 0, (lr * prem) / cnt, np.nan)
-            # Drop NaN periods for severity detector
             valid = ~np.isnan(sevs)
             if valid.any():
                 sevs_valid = sevs[valid]
@@ -184,13 +189,6 @@ class LossRatioMonitor:
                     periods=periods_valid,
                     period_to_date_fn=period_to_date_fn,
                 )
-
-        if sevs is not None and mean_severities is not None:
-            sev_result = self._sev_detector.fit(
-                mean_severities=sevs,
-                periods=periods,
-                period_to_date_fn=period_to_date_fn,
-            )
 
         # Combine signals
         T_freq = len(freq_result.changepoint_probs) if freq_result is not None else 0

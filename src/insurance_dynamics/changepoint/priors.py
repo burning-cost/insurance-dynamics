@@ -11,7 +11,7 @@ implementation, the posterior still won't force one.
 
 Usage
 -----
->>> from insurance_changepoint.priors import UKEventPrior
+>>> from insurance_dynamics.changepoint.priors import UKEventPrior
 >>> prior = UKEventPrior(lines=['motor'])
 >>> hazards = prior.hazard_series(periods, base_hazard=0.01)
 """

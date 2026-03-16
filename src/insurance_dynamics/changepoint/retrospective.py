@@ -6,7 +6,7 @@ class-based interface as the online detectors.
 
 Usage
 -----
->>> from insurance_changepoint import RetrospectiveBreakFinder
+>>> from insurance_dynamics.changepoint import RetrospectiveBreakFinder
 >>> finder = RetrospectiveBreakFinder(model='l2', penalty='bic')
 >>> breaks = finder.fit(loss_ratio_series)
 >>> print(breaks.breaks)        # [24, 67, 103]

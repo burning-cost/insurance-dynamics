@@ -8,7 +8,7 @@ adjustments, portfolio growth).
 
 Usage
 -----
->>> from insurance_changepoint import FrequencyChangeDetector
+>>> from insurance_dynamics.changepoint import FrequencyChangeDetector
 >>> detector = FrequencyChangeDetector(prior_alpha=1.0, prior_beta=12.0)
 >>> result = detector.fit(claim_counts, earned_exposure, periods)
 >>> print(result.n_breaks, "regime breaks detected")

@@ -221,7 +221,7 @@ class GASModel:
 
     Examples
     --------
-    >>> from insurance_gas import GASModel
+    >>> from insurance_dynamics.gas import GASModel
     >>> model = GASModel('poisson')
     >>> result = model.fit(y, exposure=exposure)
     >>> print(result.summary())
@@ -312,7 +312,14 @@ class GASModel:
         try:
             gas_params, static_params = self._unpack_x(x, param_names, static_names)
 
-            # Stationarity constraint: phi sum < 1 in magnitude
+            # Stationarity constraint for the AR(q) recursion.
+            # For q=1 the condition abs(phi_1) < 1 is both necessary and
+            # sufficient. For q>1 the correct condition is that all roots of
+            # the characteristic polynomial lie outside the unit circle; the
+            # sum-of-coefficients check used here is only sufficient, not
+            # necessary. A full polynomial root check is not implemented for
+            # q>1 — fit results may be unreliable when q>1 and the sum check
+            # passes but a root lies inside the unit circle.
             for tv_name in self.time_varying:
                 phi_vals = [gas_params[f"phi_{tv_name}_{j+1}"] for j in range(self.q)]
                 if abs(sum(phi_vals)) >= 1.0:

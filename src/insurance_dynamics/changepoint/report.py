@@ -10,7 +10,7 @@ as an attachment, opened in SharePoint preview, and printed to PDF.
 
 Usage
 -----
->>> from insurance_changepoint import ConsumerDutyReport
+>>> from insurance_dynamics.changepoint import ConsumerDutyReport
 >>> report = ConsumerDutyReport(result, product="Motor Private", segment="All")
 >>> report.to_html("monitoring_q4_2024.html")
 >>> data = report.to_dict()
@@ -63,6 +63,14 @@ _REPORT_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 
+{% if draft_watermark %}
+<div style="background:#c0392b; color:white; text-align:center; padding:0.75em 1em;
+            font-size:15px; font-weight:bold; margin-bottom:1em;">
+  DRAFT &mdash; requires manual review and sign-off before submission
+  {% if reviewed_by %}| Reviewer: {{ reviewed_by }}{% endif %}
+</div>
+{% endif %}
+
 <h1>Consumer Duty Pricing Monitoring Evidence</h1>
 
 <div class="metadata">
@@ -71,7 +79,9 @@ _REPORT_TEMPLATE = """<!DOCTYPE html>
   <strong>Report generated:</strong> {{ generated_at }}<br>
   <strong>Monitoring period:</strong> {{ period_from }} to {{ period_to }}<br>
   <strong>Periods analysed:</strong> {{ n_periods }}<br>
-  <strong>Algorithm:</strong> Bayesian Online Changepoint Detection (BOCPD), Poisson-Gamma conjugate
+  <strong>Algorithm:</strong> Bayesian Online Changepoint Detection (BOCPD), Poisson-Gamma conjugate<br>
+  {% if reviewed_by %}<strong>Reviewed by:</strong> {{ reviewed_by }}<br>{% endif %}
+  {% if not draft_watermark %}<strong>Status:</strong> Approved{% else %}<strong>Status:</strong> DRAFT — pending review{% endif %}
 </div>
 
 <h2>Recommendation</h2>
@@ -235,6 +245,13 @@ class ConsumerDutyReport:
         Summary from UKEventPrior.summary(). If not provided, uses empty list.
     version :
         Package version string for the footer.
+    reviewed_by :
+        Name or role of the person who reviewed and signed off the report.
+        Displayed in the header when provided. Required before removing the
+        DRAFT watermark.
+    draft :
+        If True (default), a DRAFT watermark is shown. Set to False only
+        after the report has been reviewed and approved for submission.
     """
 
     def __init__(
@@ -246,6 +263,8 @@ class ConsumerDutyReport:
         threshold: float | None = None,
         uk_events: list[dict] | None = None,
         version: str = "0.1.0",
+        reviewed_by: str | None = None,
+        draft: bool = True,
     ) -> None:
         self.result = result
         self.product = product
@@ -253,6 +272,8 @@ class ConsumerDutyReport:
         self.monitoring_frequency = monitoring_frequency
         self.version = version
         self.uk_events = uk_events or []
+        self.reviewed_by = reviewed_by
+        self.draft = draft
 
         # Infer threshold
         if threshold is not None:
@@ -487,6 +508,8 @@ class ConsumerDutyReport:
             "threshold": threshold,
             "monitoring_frequency": self.monitoring_frequency,
             "version": self.version,
+            "reviewed_by": self.reviewed_by,
+            "draft_watermark": self.draft,
         }
 
     def _match_uk_event(self, period_label: str) -> str:

@@ -113,6 +113,9 @@ def bootstrap_ci(
     dist = result.distribution
     T = result.n_obs
     time_varying = model.time_varying
+    # Original exposure — must be passed through to bootstrap refits so that
+    # the count-distribution log-likelihood is evaluated correctly.
+    original_exposure = result._exposure
 
     # P1-1 fix: retrieve exposure stored during fit so bootstrap refits use it.
     original_exposure: NDArray | None = getattr(result, "_exposure", None)

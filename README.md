@@ -3,7 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/insurance-dynamics)](https://pypi.org/project/insurance-dynamics/)
 [![Python](https://img.shields.io/pypi/pyversions/insurance-dynamics)](https://pypi.org/project/insurance-dynamics/)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)]()
-[![License](https://img.shields.io/badge/license-BSD--3-blue)]()
+[![License](https://img.shields.io/badge/license-MIT-blue)]()
 
 
 Dynamic insurance pricing models for UK pricing teams.
@@ -77,8 +77,8 @@ counts = rng.poisson(true_rate * exposures)
 # Mean severity (log-normal, slight upward drift)
 mean_sev = 1500 * np.exp(0.003 * np.arange(T)) * rng.lognormal(0, 0.15, T)
 
-# Period labels
-periods = [f"2021-{(i % 12) + 1:02d}" for i in range(T)]
+# Period labels — sequential months across years
+periods = [f"{2021 + i // 12}-{(i % 12) + 1:02d}" for i in range(T)]
 
 monitor = LossRatioMonitor(lines=["motor"], uk_events=True)
 result = monitor.monitor(
