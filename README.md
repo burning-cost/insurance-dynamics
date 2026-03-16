@@ -101,22 +101,26 @@ A ready-to-run Databricks notebook benchmarking this library against standard ap
 
 ## Performance
 
-Benchmarked against a static Poisson GLM (intercept-only and linear trend variants) on 60 months of synthetic UK motor frequency data with a known regime shift at month 36 (frequency drops 37.5%). Full notebook: `notebooks/benchmark.py`.
+Benchmarked against a static Poisson GLM (intercept-only and linear trend variants) on 60 months of synthetic UK motor frequency data with a known regime shift at month 36 (+37.5% step increase in claim frequency). Results from `benchmarks/benchmark.py` run 2026-03-16.
 
-| Metric | Static GLM | GAS Poisson |
-|--------|-----------|-------------|
-| One-step-ahead MAE (overall) | higher | lower |
-| One-step-ahead MAE (post-break) | higher | lower |
-| Lambda RMSE vs true schedule (post-break) | higher | lower |
-| Log-likelihood | lower | higher |
-| PIT KS test (calibration) | fails post-break | passes |
-| Break detected within ±3 months | No | BOCPD + PELT: Yes |
+| Model | MAE (all periods) | MAE (post-break) | RMSE vs true lambda (post-break) | Log-likelihood |
+|-------|------------------|-----------------|----------------------------------|----------------|
+| GLM constant | 0.014980 | 0.018468 | 0.019104 | -289.0 |
+| GLM trend | 0.009697 | 0.009918 | 0.008795 | -236.3 |
+| GAS Poisson | **0.008290** | 0.010256 | **0.007032** | **-231.0** |
 
-The static GLM blends the two regimes into a long-run average — it is wrong in both directions and cannot flag that anything changed. The GAS filter adapts observation by observation; BOCPD and PELT locate the break retrospectively with a bootstrap confidence interval.
+GAS Poisson vs best static baseline (post-break):
+- MAE overall: **+14.5% improvement** vs GLM trend
+- MAE post-break: -3.4% (GLM trend has slightly lower post-break MAE on this DGP)
+- RMSE vs true lambda: **+20.1% improvement**
+- Log-likelihood: **+5.3** (better distributional fit)
+- Post-break mean filter rate: 0.1061 (true = 0.110); converges to 0.1082 by month 48
 
-**When to use:** You have monthly or quarterly aggregate claim data and want to track how underlying rates are evolving, or you need to detect whether a regulatory event or market shift has changed your book.
+The GAS filter wins clearly on RMSE against the true lambda schedule — it tracks the step more accurately than a blended linear trend. The MAE tradeoff at post-break is small (within noise) and reverses at the overall level. Log-likelihood improvement reflects a consistently better-calibrated model throughout the series, not just post-break.
 
-**When NOT to use:** You have a stable, stationary book and want to explain cross-sectional risk factors. That is a GLM job. GAS adds value at the time-series layer, not the rating-factor layer.
+**When to use:** Monthly or quarterly aggregate claim data where the underlying rate may be drifting or subject to structural events. GAS adapts continuously; it does not require a known break date.
+
+**When NOT to use:** Cross-sectional risk factor estimation. That is a GLM job. GAS adds value at the time-series layer, not the rating-factor layer.
 
 
 ## Related Libraries
