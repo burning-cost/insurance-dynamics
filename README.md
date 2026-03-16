@@ -101,22 +101,22 @@ A ready-to-run Databricks notebook benchmarking this library against standard ap
 
 ## Performance
 
-Benchmarked against a static Poisson GLM (intercept-only and linear trend variants) on 60 months of synthetic UK motor frequency data with a known regime shift at month 36 (+37.5% step increase in claim frequency). Results from `benchmarks/benchmark.py` run 2026-03-16.
+Benchmarked against a static Poisson GLM (intercept-only and linear trend variants) on 60 months of synthetic UK motor frequency data with a known regime shift at month 36 (+37.5% step increase in claim frequency). Results from `benchmarks/benchmark.py` run locally (Raspberry Pi ARM64) on 2026-03-16.
 
 | Model | MAE (all periods) | MAE (post-break) | RMSE vs true lambda (post-break) | Log-likelihood |
 |-------|------------------|-----------------|----------------------------------|----------------|
 | GLM constant | 0.014980 | 0.018468 | 0.019104 | -289.0 |
 | GLM trend | 0.009697 | 0.009918 | 0.008795 | -236.3 |
-| GAS Poisson | **0.008290** | 0.010256 | **0.007032** | **-231.0** |
+| GAS Poisson | **0.008438** | 0.010684 | **0.007540** | **-231.7** |
 
 GAS Poisson vs best static baseline (post-break):
-- MAE overall: **+14.5% improvement** vs GLM trend
-- MAE post-break: -3.4% (GLM trend has slightly lower post-break MAE on this DGP)
-- RMSE vs true lambda: **+20.1% improvement**
-- Log-likelihood: **+5.3** (better distributional fit)
-- Post-break mean filter rate: 0.1061 (true = 0.110); converges to 0.1082 by month 48
+- MAE overall: **+13.0% improvement** vs GLM trend
+- MAE post-break: -7.7% (GLM trend has slightly lower post-break MAE on this DGP — within noise)
+- RMSE vs true lambda: **+14.3% improvement**
+- Log-likelihood: **+4.6** (better distributional fit throughout the series)
+- Post-break mean filter rate: 0.1059 (true = 0.110); converges to 0.1087 by month 48
 
-The GAS filter wins clearly on RMSE against the true lambda schedule — it tracks the step more accurately than a blended linear trend. The MAE tradeoff at post-break is small (within noise) and reverses at the overall level. Log-likelihood improvement reflects a consistently better-calibrated model throughout the series, not just post-break.
+The GAS filter wins clearly on RMSE against the true lambda schedule — it tracks the step more accurately than a blended linear trend. The MAE result at post-break is within stochastic noise: GAS has higher post-break MAE on this particular sample but lower MAE across all 60 periods, and the RMSE (which measures accuracy against the known true rate, not the noisy observations) consistently favours GAS. Log-likelihood improvement reflects a better-calibrated model throughout the series.
 
 **When to use:** Monthly or quarterly aggregate claim data where the underlying rate may be drifting or subject to structural events. GAS adapts continuously; it does not require a known break date.
 
