@@ -42,7 +42,7 @@ Merged from: `insurance-gas` (GAS score-driven models) and `insurance-changepoin
 ## Installation
 
 ```bash
-pip install insurance-dynamics
+uv add insurance-dynamics
 ```
 
 > 💬 Questions or feedback? Start a [Discussion](https://github.com/burning-cost/insurance-dynamics/discussions). Found it useful? A ⭐ helps others find it.
