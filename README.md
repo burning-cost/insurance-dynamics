@@ -12,6 +12,8 @@ Two problems, one package: tracking how your loss ratios are changing right now 
 
 Merged from: `insurance-gas` (GAS score-driven models) and `insurance-changepoint` (BOCPD/PELT detection).
 
+**Blog post:** [Tracking Trend Between Model Updates with GAS Filters](https://burning-cost.github.io/2027/04/15/gas-models-for-between-update-trend/)
+
 ## The problems this solves
 
 **GAS models** (`insurance_dynamics.gas`): Your GLM gives you a static relativity. Reality gives you frequency that drifts quarter by quarter. GAS (Generalised Autoregressive Score) models fit a time-varying parameter model to claim counts, severities, or loss ratios — producing a filter path that shows you how the underlying rate has moved, with confidence bands from parametric bootstrap.
@@ -42,6 +44,8 @@ Merged from: `insurance-gas` (GAS score-driven models) and `insurance-changepoin
 ```bash
 pip install insurance-dynamics
 ```
+
+> 💬 Questions or feedback? Start a [Discussion](https://github.com/burning-cost/insurance-dynamics/discussions). Found it useful? A ⭐ helps others find it.
 
 ## Quick start
 
