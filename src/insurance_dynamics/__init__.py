@@ -58,7 +58,12 @@ from .changepoint import (
     BreakInterval,
 )
 
-__version__ = "0.1.2"
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("insurance-dynamics")
+except PackageNotFoundError:
+    __version__ = "0.0.0"  # not installed
 
 __all__ = [
     # GAS

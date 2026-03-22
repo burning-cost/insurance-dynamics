@@ -55,7 +55,7 @@ from .distributions import (
 )
 from .datasets import load_motor_frequency, load_severity_trend, load_loss_ratio
 
-__version__ = "0.1.0"
+from .. import __version__
 
 __all__ = [
     "GASModel",

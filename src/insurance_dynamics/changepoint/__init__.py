@@ -41,7 +41,7 @@ from .priors import UKEventPrior, UKEvent, UK_EVENTS
 from .report import ConsumerDutyReport
 from .result import ChangeResult, BreakResult, MonitorResult, DetectedBreak, BreakInterval
 
-__version__ = "0.1.0"
+from .. import __version__
 __all__ = [
     "FrequencyChangeDetector",
     "SeverityChangeDetector",
