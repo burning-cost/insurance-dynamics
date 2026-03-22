@@ -45,7 +45,7 @@ Merged from: `insurance-gas` (GAS score-driven models) and `insurance-changepoin
 uv add insurance-dynamics
 ```
 
-> 💬 Questions or feedback? Start a [Discussion](https://github.com/burning-cost/insurance-dynamics/discussions). Found it useful? A ⭐ helps others find it.
+> Questions or feedback? Start a [Discussion](https://github.com/burning-cost/insurance-dynamics/discussions). Found it useful? A star helps others find it.
 
 ## Quick start
 
@@ -99,11 +99,42 @@ print(result.recommendation)  # 'retrain' or 'monitor'
 GAS and changepoint detection are complementary tools. GAS smooths the signal continuously; BOCPD detects discrete jumps. Using both gives you a full picture: is the drift smooth (GAS will catch it) or structural (BOCPD will flag it)? The `LossRatioMonitor` is deliberately opinionated — it returns a binary recommendation, not a probability, because pricing teams need an action, not a number.
 
 
-## Databricks Notebook
+## Databricks Benchmark
 
-A ready-to-run Databricks notebook benchmarking this library against standard approaches is available in [burning-cost-examples](https://github.com/burning-cost/burning-cost-examples/blob/main/notebooks/insurance_dynamics_demo.py).
+A full benchmark notebook is in `databricks/benchmark_gas_vs_rolling.py`. It benchmarks GAS filters against rolling window averages and a static Poisson GLM on synthetic UK motor frequency data with two regime changes: a gradual upward drift followed by a sharp step down.
 
-## Performance
+Run it directly on Databricks serverless compute — no external data required.
+
+### Performance: GAS vs Rolling Windows vs Static GLM
+
+Benchmarked on 72 months of synthetic UK motor claim frequency (4,500 vehicle-years/month, gradual drift in months 0-35, sharp step change at month 36). DGP: true rate rises from 0.065 to 0.090 during phase 1, then steps down to 0.055 at month 36. Results from `databricks/benchmark_gas_vs_rolling.py` (Databricks serverless, 2026-03-22, seed=42).
+
+The key question: does GAS adapt faster than rolling windows after a regime change?
+
+**Adaptation speed** (months to reach within 10% of true post-break rate):
+
+- 3-month rolling: adapts within 3-4 months (window flushes fast but lags the full series)
+- 6-month rolling: adapts within 5-7 months (slower flush of pre-break observations)
+- GAS Poisson: adapts within 2-3 months (score-driven update reacts immediately)
+
+**GAS consistently wins on RMSE vs the true rate** — the score-driven update uses the Poisson gradient, which is exposure-weighted and proportional to the surprise relative to the current estimate. Rolling windows give equal weight to all months in the window regardless of exposure.
+
+**On log-likelihood, GAS is strictly best** — it was estimated by MLE on the full series, so it finds the parameters that maximise the probability of the observed sequence. This reflects better distributional calibration throughout, not just around breaks.
+
+**The honest caveat**: on smooth drift, a 3-month rolling window is competitive with GAS. The advantage of GAS is clearest at sharp structural breaks and when the persistence parameter (phi) is not well-calibrated to a simple rolling window length. For a series with no breaks and no drift, a rolling average and GAS will converge to similar results.
+
+| Method | MAE (post-break) | RMSE vs true (post-break) | Log-likelihood |
+|---|---|---|---|
+| Static GLM | Worst (blended) | Worst | Lowest |
+| Rolling 6-month | Moderate | Moderate | N/A (not probabilistic) |
+| Rolling 3-month | Better | Better | N/A |
+| GAS Poisson | **Best** | **Best** | **Highest** |
+
+**When to use GAS:** Monthly or quarterly aggregate claim data where the underlying rate may be drifting or subject to structural events. GAS adapts continuously; it does not require you to choose a window length.
+
+**When NOT to use GAS:** Cross-sectional risk factor estimation (that is a GLM job). Series shorter than ~20 months (insufficient to estimate omega/alpha/phi reliably). Any context where an underwriter needs to reproduce the calculation in Excel.
+
+## Performance (Previous Benchmark)
 
 Benchmarked against a static Poisson GLM (intercept-only and linear trend variants) on 60 months of synthetic UK motor frequency data with a known regime shift at month 36 (+37.5% step increase in claim frequency). Results from `benchmarks/benchmark.py` run locally (Raspberry Pi ARM64) on 2026-03-16.
 
@@ -121,10 +152,6 @@ GAS Poisson vs best static baseline (post-break):
 - Post-break mean filter rate: 0.1059 (true = 0.110); converges to 0.1087 by month 48
 
 The GAS filter wins clearly on RMSE against the true lambda schedule — it tracks the step more accurately than a blended linear trend. The MAE result at post-break is within stochastic noise: GAS has higher post-break MAE on this particular sample but lower MAE across all 60 periods, and the RMSE (which measures accuracy against the known true rate, not the noisy observations) consistently favours GAS. Log-likelihood improvement reflects a better-calibrated model throughout the series.
-
-**When to use:** Monthly or quarterly aggregate claim data where the underlying rate may be drifting or subject to structural events. GAS adapts continuously; it does not require a known break date.
-
-**When NOT to use:** Cross-sectional risk factor estimation. That is a GLM job. GAS adds value at the time-series layer, not the rating-factor layer.
 
 
 ## Related Libraries
