@@ -7,7 +7,7 @@ name = "insurance-dynamics"
 version = "0.1.2"
 description = "Dynamic insurance pricing models: GAS score-driven filters and Bayesian change-point detection"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "Burning Cost", email = "pricing.frontier@gmail.com" }]
 keywords = [
     "insurance",
