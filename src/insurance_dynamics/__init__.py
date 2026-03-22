@@ -16,6 +16,13 @@ Quick start
 >>> from insurance_dynamics.changepoint import FrequencyChangeDetector, LossRatioMonitor
 """
 
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("insurance-dynamics")
+except PackageNotFoundError:
+    __version__ = "0.0.0"  # not installed
+
 from .gas import (
     GASModel,
     GASResult,
@@ -57,13 +64,6 @@ from .changepoint import (
     DetectedBreak,
     BreakInterval,
 )
-
-from importlib.metadata import version, PackageNotFoundError
-
-try:
-    __version__ = version("insurance-dynamics")
-except PackageNotFoundError:
-    __version__ = "0.0.0"  # not installed
 
 __all__ = [
     # GAS

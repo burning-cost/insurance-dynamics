@@ -37,6 +37,13 @@ Quick start
 >>> print(result.summary())
 """
 
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("insurance-dynamics")
+except PackageNotFoundError:
+    __version__ = "0.0.0"
+
 from .model import GASModel, GASResult
 from .panel import GASPanel, GASPanelResult
 from .filter import GASFilter, FilterResult
@@ -54,8 +61,6 @@ from .distributions import (
     DISTRIBUTION_MAP,
 )
 from .datasets import load_motor_frequency, load_severity_trend, load_loss_ratio
-
-from .. import __version__
 
 __all__ = [
     "GASModel",

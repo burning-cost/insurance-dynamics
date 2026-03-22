@@ -33,6 +33,13 @@ Quick start
 >>> result = monitor.monitor(claim_counts=counts, exposures=exp, periods=periods)
 """
 
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("insurance-dynamics")
+except PackageNotFoundError:
+    __version__ = "0.0.0"
+
 from .frequency import FrequencyChangeDetector
 from .severity import SeverityChangeDetector
 from .loss_ratio import LossRatioMonitor
@@ -41,7 +48,6 @@ from .priors import UKEventPrior, UKEvent, UK_EVENTS
 from .report import ConsumerDutyReport
 from .result import ChangeResult, BreakResult, MonitorResult, DetectedBreak, BreakInterval
 
-from .. import __version__
 __all__ = [
     "FrequencyChangeDetector",
     "SeverityChangeDetector",
