@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "insurance-dynamics"
-version = "0.1.2"
+version = "0.1.3"
 description = "Dynamic insurance pricing models: GAS score-driven filters and Bayesian change-point detection"
 readme = "README.md"
 license = "MIT"

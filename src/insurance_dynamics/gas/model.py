@@ -15,6 +15,8 @@ from .distributions.base import GASDistribution
 from .distributions import DISTRIBUTION_MAP
 from .filter import GASFilter, FilterResult
 
+_VALID_SCALING = {"unit", "fisher_inv", "fisher_inv_sqrt"}
+
 
 @dataclass
 class GASResult:
@@ -207,9 +209,9 @@ class GASModel:
         Distribution name (``'poisson'``, ``'gamma'``, ``'negbin'``,
         ``'lognormal'``, ``'beta'``, ``'zip'``) or a GASDistribution instance.
     p:
-        Number of score lags. Default 1.
+        Number of score lags. Must be >= 1. Default 1.
     q:
-        Number of AR lags (persistence). Default 1.
+        Number of AR lags (persistence). Must be >= 1. Default 1.
     scaling:
         Score scaling method. One of:
         ``'unit'`` — no scaling;
@@ -235,6 +237,16 @@ class GASModel:
         scaling: str = "fisher_inv",
         time_varying: list[str] | None = None,
     ) -> None:
+        # P1 validation: p and q must be positive integers
+        if not isinstance(p, int) or p < 1:
+            raise ValueError(f"p must be an integer >= 1, got {p!r}")
+        if not isinstance(q, int) or q < 1:
+            raise ValueError(f"q must be an integer >= 1, got {q!r}")
+        if scaling not in _VALID_SCALING:
+            raise ValueError(
+                f"scaling must be one of {sorted(_VALID_SCALING)}, got '{scaling}'"
+            )
+
         if isinstance(distribution, str):
             dist_name = distribution.lower()
             if dist_name not in DISTRIBUTION_MAP:
@@ -369,14 +381,17 @@ class GASModel:
         static_names = self._build_static_param_names()
 
         # Build initial x0
+        # P0 fix: compute phi_init once and use consistently for both omega and phi
+        # so that omega = init_f * (1 - phi_init) matches the AR intercept identity.
+        phi_init = 0.9
         x0_gas = []
         for tv_name in self.time_varying:
             init_f = self.distribution.link(tv_name, init_dist.get(tv_name, 1.0))
-            x0_gas.append(float(init_f) * (1.0 - 0.9))  # omega ≈ intercept
+            x0_gas.append(float(init_f) * (1.0 - phi_init))  # omega ≈ intercept
             for i in range(self.p):
                 x0_gas.append(0.1)  # alpha
             for j in range(self.q):
-                x0_gas.append(0.9 if j == 0 else 0.0)  # phi
+                x0_gas.append(phi_init if j == 0 else 0.0)  # phi
 
         x0_static = []
         for name in static_names:

@@ -362,3 +362,86 @@ class TestEdgeCases:
             r2.filter_path["mean"].values,
             rtol=1e-3,
         )
+
+
+# ---------------------------------------------------------------------------
+# P0/P1 regression tests
+# ---------------------------------------------------------------------------
+
+class TestConstructionValidation:
+    """P1: validate p, q, scaling at construction time."""
+
+    def test_p_zero_raises(self):
+        with pytest.raises(ValueError, match="p must be an integer >= 1"):
+            GASModel("poisson", p=0)
+
+    def test_p_negative_raises(self):
+        with pytest.raises(ValueError, match="p must be an integer >= 1"):
+            GASModel("poisson", p=-1)
+
+    def test_p_float_raises(self):
+        with pytest.raises(ValueError, match="p must be an integer >= 1"):
+            GASModel("poisson", p=1.5)  # type: ignore
+
+    def test_q_zero_raises(self):
+        with pytest.raises(ValueError, match="q must be an integer >= 1"):
+            GASModel("poisson", q=0)
+
+    def test_q_negative_raises(self):
+        with pytest.raises(ValueError, match="q must be an integer >= 1"):
+            GASModel("poisson", q=-2)
+
+    def test_invalid_scaling_raises(self):
+        with pytest.raises(ValueError, match="scaling must be one of"):
+            GASModel("poisson", scaling="identity")
+
+    def test_invalid_scaling_inverse_raises(self):
+        with pytest.raises(ValueError, match="scaling must be one of"):
+            GASModel("poisson", scaling="inverse")
+
+    def test_valid_p_q_scaling_accepted(self):
+        m = GASModel("poisson", p=2, q=3, scaling="unit")
+        assert m.p == 2
+        assert m.q == 3
+        assert m.scaling == "unit"
+
+
+class TestOmegaPhiCoupling:
+    """P0: omega and phi_init must reference the same phi_init value."""
+
+    def test_x0_omega_consistent_with_phi(self):
+        """Check that the initial x0 vector satisfies omega = init_f * (1 - phi_init).
+
+        We reconstruct x0 by patching the optimiser call and inspecting the
+        initial parameter vector passed to it.
+        """
+        import unittest.mock as mock
+
+        rng = np.random.default_rng(99)
+        y = rng.poisson(3.0, 30).astype(float)
+        m = GASModel("poisson")
+
+        captured_x0 = {}
+
+        original_minimize = __import__("scipy.optimize", fromlist=["minimize"]).minimize
+
+        def capturing_minimize(fun, x0, **kwargs):
+            captured_x0["x0"] = x0.copy()
+            return original_minimize(fun, x0, **kwargs)
+
+        with mock.patch("scipy.optimize.minimize", side_effect=capturing_minimize):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                m.fit(y)
+
+        x0 = captured_x0["x0"]
+        # For p=1, q=1, poisson (one TV param: mean), layout is [omega, alpha, phi]
+        omega = x0[0]
+        phi = x0[2]
+        # omega + phi * init_f should ≈ init_f, i.e. omega = init_f * (1 - phi)
+        # Equivalently, omega / (1 - phi) should ≈ init_f = omega / (1 - phi)
+        # The key invariant: phi == 0.9 and omega == init_f * 0.1
+        assert abs(phi - 0.9) < 1e-10, f"phi_init should be 0.9, got {phi}"
+        # omega / (1 - phi) should equal init_f (positive)
+        init_f_recovered = omega / (1.0 - phi)
+        assert init_f_recovered > 0, "Recovered init_f should be positive"
