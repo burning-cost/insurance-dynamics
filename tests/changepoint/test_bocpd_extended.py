@@ -20,7 +20,7 @@ Targets code paths not hit by the existing test suite:
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 import numpy as np
 import pytest
