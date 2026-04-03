@@ -473,7 +473,7 @@ class TestLossRatioMonitorExtended:
             claim_counts=counts,
             exposures=exposures,
         )
-        assert isinstance(result, __import__('insurance_dynamics').changepoint.result.MonitorResult)
+        assert isinstance(result, MonitorResult)
 
     def test_all_zero_counts_no_severity(self):
         """All zero claims → nan severity everywhere → no severity result."""

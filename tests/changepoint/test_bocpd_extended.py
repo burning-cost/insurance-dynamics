@@ -344,7 +344,7 @@ class TestFrequencyChangeDetectorExtended:
         # Fit initial data
         counts = np.random.default_rng(42).poisson(5, 20)
         exposure = np.full(20, 100.0)
-        periods = [date(2020, 1, 1) + __import__('datetime').timedelta(days=30 * i)
+        periods = [date(2020, 1, 1) + timedelta(days=30 * i)
                    for i in range(20)]
         det.fit(counts, exposure, periods=periods)
 
@@ -441,7 +441,7 @@ class TestSeverityChangeDetectorExtended:
             event_components=["severity"],
         )
         sevs = np.random.default_rng(42).lognormal(8.0, 0.3, 20)
-        periods = [date(2016, 1, 1) + __import__('datetime').timedelta(days=30 * i)
+        periods = [date(2016, 1, 1) + timedelta(days=30 * i)
                    for i in range(20)]
         det.fit(sevs, periods=periods)
 

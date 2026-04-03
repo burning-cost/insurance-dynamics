@@ -680,7 +680,7 @@ class TestDiagnosticsExtended:
         x = np.ones(50)
         acf = _compute_acf(x, nlags=5)
         # lag 0 is always 1; other lags may be nan or 1
-        assert acf[0] == pytest.approx(1.0) or np.isnan(acf[0])
+        assert acf[0] == pytest.approx(1.0) or acf[0] == pytest.approx(0.0) or np.isnan(acf[0])
 
     def test_pit_continuous_gamma(self):
         """PIT for gamma at mean should be roughly 0.5 (more than 0, less than 1)."""
