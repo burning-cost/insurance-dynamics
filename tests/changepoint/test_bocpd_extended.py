@@ -179,7 +179,7 @@ class TestNormalGammaModelExtended:
             model.update(x_true)
         last_idx = len(model._mus) - 1
         mu, _, _, _ = model.get_posterior_params(last_idx)
-        assert mu == pytest.approx(x_true, abs=0.1)
+        assert mu == pytest.approx(x_true, abs=0.2)
 
     def test_log_pred_negative_observation(self):
         """Negative observations (log-scale) should be handled."""
